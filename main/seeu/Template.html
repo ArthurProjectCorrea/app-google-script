@@ -1,0 +1,134 @@
+<!-- Template reutilizável para front-ends SEEU e similares
+     Pode ser publicado como biblioteca. Use getTemplateContent() na lib.
+-->
+<style>
+  :root{--primary:#667eea;--primary-dark:#5568d3;--muted:#f5f7fb;--card-bg:#ffffff;--radius:12px;--max-width:1200px;--gap:15px;--accent:#764ba2}
+  .fuanc-container{max-width:var(--max-width);margin:0 auto;padding:24px;font-family:Segoe UI, Tahoma, Geneva, Verdana, sans-serif}
+  .fuanc-header{text-align:center;color:var(--card-bg);margin-bottom:20px}
+  .fuanc-title{font-size:1.6rem;color:#fff}
+  .fuanc-sub{color:rgba(255,255,255,0.9);margin-top:6px}
+  .fuanc-card{background:var(--card-bg);border-radius:var(--radius);padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.12);margin-bottom:18px}
+  .fuanc-h2{color:#333;margin:0 0 16px 0;font-size:1.125rem}
+  .fuanc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap);align-items:end}
+  .fuanc-group{display:flex;flex-direction:column}
+  .fuanc-label{font-weight:600;color:#333;margin-bottom:6px;font-size:.95rem}
+  .fuanc-input{padding:10px 12px;border:2px solid #e9eef9;border-radius:8px;font-size:1rem;transition:border-color 0.2s}
+  .fuanc-input:focus{outline:none;border-color:var(--primary)}
+  /* Buttons in a single row on desktop, stack on mobile */
+  .fuanc-buttons{display:flex;flex-direction:row;gap:10px;justify-content:flex-end}
+  .fuanc-btn{padding:11px 20px;border-radius:8px;border:none;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+  .fuanc-btn-consultar{background:var(--primary);color:#fff}
+  .fuanc-btn-consultar:hover{background:var(--primary-dark);transform:translateY(-1px);box-shadow:0 4px 12px rgba(102,126,234,0.3)}
+  .fuanc-btn-clear{background:#f0f0f0;color:#333}
+  .fuanc-btn-clear:hover{background:#e0e0e0;transform:translateY(-1px)}
+  .fuanc-table-wrap{background:var(--card-bg);border-radius:var(--radius);overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.12)}
+  .fuanc-table-head{background:var(--primary);color:#fff;padding:14px 18px}
+  .fuanc-table-head h3{margin:0;font-size:1rem}
+  .fuanc-results{padding:12px}
+  table.fuanc-table{width:100%;border-collapse:collapse}
+  table.fuanc-table th, table.fuanc-table td{padding:12px 10px;text-align:left;border-bottom:1px solid #f1f3f8}
+  table.fuanc-table thead th{background:transparent;color:#333;font-weight:700}
+  .fuanc-empty{text-align:center;padding:32px;color:#888}
+  .fuanc-toast{position:fixed;bottom:30px;right:30px;background:#2e7d32;color:#fff;padding:16px 24px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex;align-items:center;gap:10px;font-weight:600;opacity:0;transform:translateY(20px);transition:all 0.3s ease;z-index:9999;pointer-events:none}
+  .fuanc-toast.show{opacity:1;transform:translateY(0);pointer-events:auto}
+  @media (max-width:768px){
+    .fuanc-grid{grid-template-columns:1fr}
+    .fuanc-buttons{flex-direction:column;align-items:stretch;margin-top:10px}
+    .fuanc-toast{left:20px;right:20px;bottom:20px}
+  }
+
+  /* Results as responsive cards */
+  /* Force cards to stack vertically (one per row) */
+  .results-grid{display:grid;grid-template-columns:1fr;gap:14px;padding:12px}
+  .result-card{background:var(--card-bg);border-radius:10px;padding:14px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+  .card-field{display:flex;flex-direction:column}
+  .card-field label{font-weight:600;color:#333;margin-bottom:6px;font-size:0.9rem}
+  .card-field input{padding:8px;border:1px solid #e6eefb;border-radius:6px;background:#fbfdff;color:#1b2b45}
+  .card-field input:disabled{background:transparent;color:#1b2b45;border-color:transparent}
+  .card-actions{display:flex;gap:10px;justify-content:flex-end}
+  .card-action-btn{padding:9px 12px;border-radius:6px;border:none;cursor:pointer;font-weight:700;background:#1e6fbf;color:#fff}
+  .card-action-btn.secondary{background:#6c757d}
+</style>
+
+<div id="fuanc-template-root">
+  <div class="fuanc-header">
+    <div style="background:linear-gradient(135deg,var(--primary),var(--accent));padding:18px;border-radius:10px;margin-bottom:14px">
+      <div class="fuanc-title" id="fuanc-template-title">Atendimentos</div>
+      <div class="fuanc-sub" id="fuanc-template-sub">Consulta e gerenciamento</div>
+    </div>
+  </div>
+
+  <div class="fuanc-card">
+    <h2 class="fuanc-h2">Consulta rápida</h2>
+    <div class="fuanc-grid">
+      <div class="fuanc-group">
+        <label class="fuanc-label" for="fuanc-cpf">CPF</label>
+        <input id="fuanc-cpf" class="fuanc-input" type="text" placeholder="000.000.000-00" maxlength="14">
+      </div>
+
+      <div class="fuanc-group">
+        <label class="fuanc-label" for="fuanc-nome">Nome</label>
+        <input id="fuanc-nome" class="fuanc-input" type="text" placeholder="Nome">
+      </div>
+
+      <div class="fuanc-group">
+        <label class="fuanc-label" for="fuanc-nome-mae">Nome da Mãe</label>
+        <input id="fuanc-nome-mae" class="fuanc-input" type="text" placeholder="Nome da mãe">
+      </div>
+    </div>
+    
+    <div class="fuanc-buttons" style="margin-top:18px">
+      <button class="fuanc-btn fuanc-btn-clear" id="fuanc-clear">Limpar</button>
+      <button class="fuanc-btn fuanc-btn-consultar" id="fuanc-cadastrar">Cadastrar</button>
+      <button class="fuanc-btn fuanc-btn-consultar" id="fuanc-search">Consultar</button>
+    </div>
+  </div>
+
+  <div class="fuanc-table-wrap">
+    <div class="fuanc-table-head">
+      <h3 id="fuanc-table-title">Resultados</h3>
+    </div>
+    <div class="fuanc-results" id="fuanc-results">
+      <div class="fuanc-empty">Preencha os campos acima e clique em "Consultar"</div>
+    </div>
+  </div>
+  
+  <div id="fuanc-toast" class="fuanc-toast">
+    <span id="fuanc-toast-message">Copiado!</span>
+  </div>
+</div>
+
+<script>
+  function fuancShowToast(message){ var toast=document.getElementById('fuanc-toast'); var msg=document.getElementById('fuanc-toast-message'); if(msg) msg.textContent=message; toast.classList.add('show'); setTimeout(function(){ toast.classList.remove('show'); }, 2500); }
+  function fuancFormatCPF(v){ if(!v) return ''; var s=v.toString().replace(/\D/g,'').slice(0,11); if(s.length<=3) return s; if(s.length<=6) return s.slice(0,3)+'.'+s.slice(3); if(s.length<=9) return s.slice(0,3)+'.'+s.slice(3,6)+'.'+s.slice(6); return s.slice(0,3)+'.'+s.slice(3,6)+'.'+s.slice(6,9)+'-'+s.slice(9); }
+  function fuancCopyProcess(processo){ if(!processo) return; var clean=processo.replace(/\D/g,''); navigator.clipboard.writeText(clean).then(function(){ fuancShowToast('Processo copiado: '+clean); }).catch(function(){ var temp=document.createElement('textarea'); temp.value=clean; document.body.appendChild(temp); temp.select(); document.execCommand('copy'); document.body.removeChild(temp); fuancShowToast('Processo copiado: '+clean); }); }
+  function fuancDefaultFetch(filters){ return new Promise(function(resolve,reject){ google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).buscarDados(filters.cpf||'', filters.nome||'', filters.nomeMae||''); }); }
+  function fuancRenderResults(results){
+    var root=document.getElementById('fuanc-results');
+    if(!results||results.length===0){
+      root.innerHTML='<div class="fuanc-empty">Nenhum registro encontrado</div>';
+      return;
+    }
+    var html=['<div class="results-grid">'];
+    results.forEach(function(r){
+      html.push('<div class="result-card">');
+      html.push('<div class="card-grid">');
+      html.push('<div class="card-field"><label>CPF</label><input type="text" value="'+(r.cpf||'')+'" disabled></div>');
+      html.push('<div class="card-field"><label>Nome</label><input type="text" value="'+(r.nome||'')+'" disabled></div>');
+      html.push('<div class="card-field"><label>Nome da Mãe</label><input type="text" value="'+(r.nomeMae||'')+'" disabled></div>');
+      html.push('<div class="card-field"><label>Nº Processo</label><input type="text" value="'+(r.numeroProcesso||'')+'" disabled></div>');
+      html.push('<div class="card-field"><label>Telefone</label><input type="text" value="'+(r.telefone||'')+'" disabled></div>');
+      html.push('</div>');
+      html.push('<div class="card-actions">');
+      html.push('<button class="card-action-btn" onclick="fuancOnAction(\''+(r.cpf||'')+'\',\''+(r.numeroProcesso||'')+'\')">Gerar Termo</button>');
+      html.push('<button class="card-action-btn secondary" onclick="fuancCopyProcess(\''+(r.numeroProcesso||'')+'\')">Copiar Processo</button>');
+      html.push('</div>');
+      html.push('</div>');
+    });
+    html.push('</div>');
+    root.innerHTML=html.join('');
+  }
+  function fuancOnAction(cpf,numeroProcesso){ var btn=event&&event.target?event.target:null; if(btn){ var prev=btn.innerHTML; btn.innerHTML='Processando...'; btn.disabled=true; } google.script.run.withSuccessHandler(function(res){ if(btn){ btn.innerHTML=prev; btn.disabled=false; } if(res&&res.url){ window.open(res.url,'_blank'); } else if(res&&res.error){ alert('Erro: '+res.error); } }).withFailureHandler(function(e){ if(btn){ btn.innerHTML=prev; btn.disabled=false; } alert('Erro: '+e); }).gerarUrlAutopreenchimento(cpf,numeroProcesso); }
+  function initTemplate(options){ options=options||{}; if(options.title) document.getElementById('fuanc-template-title').textContent=options.title; if(options.subtitle) document.getElementById('fuanc-template-sub').textContent=options.subtitle; var fetcher=options.fetchData||fuancDefaultFetch; var onAction=options.onAction||fuancOnAction; var inpCpf=document.getElementById('fuanc-cpf'); var inpNome=document.getElementById('fuanc-nome'); var inpMae=document.getElementById('fuanc-nome-mae'); inpCpf.addEventListener('input',function(e){ e.target.value=fuancFormatCPF(e.target.value); }); document.getElementById('fuanc-clear').addEventListener('click',function(){ inpCpf.value=''; inpNome.value=''; inpMae.value=''; document.getElementById('fuanc-results').innerHTML='<div class="fuanc-empty">Preencha os campos acima e clique em "Consultar"</div>'; }); document.getElementById('fuanc-cadastrar').addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); google.script.run.withSuccessHandler(function(url){ if(url){ window.open(url,'_blank'); }else{ alert('Erro: URL do formulário não encontrada'); } }).withFailureHandler(function(e){ alert('Erro ao abrir formulário: '+e); }).getFormUrl(); }); document.getElementById('fuanc-search').addEventListener('click',function(){ var cpf=inpCpf.value.replace(/\D/g,''); var nome=inpNome.value.trim(); var nomeMae=inpMae.value.trim(); document.getElementById('fuanc-results').innerHTML='<div class="fuanc-empty">Buscando...</div>'; Promise.resolve(fetcher({ cpf: cpf, nome: nome, nomeMae: nomeMae })).then(function(res){ if(typeof options.renderResults==='function') return options.renderResults(res); fuancRenderResults(res); }).catch(function(err){ document.getElementById('fuanc-results').innerHTML='<div class="fuanc-empty">Erro: '+(err&&err.message?err.message:err)+'</div>'; }); }); [inpCpf,inpNome,inpMae].forEach(function(el){ el.addEventListener('keypress',function(e){ if(e.key==='Enter'){ document.getElementById('fuanc-search').click(); } }); }); window.fuancOnAction=onAction; window.fuancFetch=fetcher; }
+</script>
