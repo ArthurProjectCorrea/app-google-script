@@ -14,6 +14,11 @@
  * @param {Spreadsheet} ss - Objeto Spreadsheet já aberto.
  */
 function createSocioeconomic(socioData, ss) {
+  // Validate types constants
+  if (typeof types === 'undefined' || !types.SOCIOECONOMIC_COL) {
+    throw new Error('types.SOCIOECONOMIC_COL não disponível. Adicione a biblioteca `types`.');
+  }
+
   var personSheet = ss.getSheetByName(types.SHEET_NAMES.PERSON);
   if (!personSheet) throw new Error('Aba PERSON não encontrada.');
 
@@ -41,19 +46,14 @@ function createSocioeconomic(socioData, ss) {
   var socioSheet = ss.getSheetByName(types.SHEET_NAMES.SOCIOECONOMIC);
   if (!socioSheet) throw new Error('Aba SOCIOECONOMIC não encontrada.');
 
-  var values = [
-    new Date(),
-    socioData.createdBy || '',
-    '',
-    '',
-    socioData.cpf,
-    '', // RESERVED_F
-    '', // RESERVED_G
-    socioData.tipoImovel,
-    socioData.possuiVeiculo,
-    socioData.possuiFilhos,
-    socioData.comQuemFilhos
-  ];
+  // Prepare cell values explicitly to ensure columns F-G are skipped and H-K are set
+  var createdAt = new Date();
+  var createdBy = socioData.createdBy || '';
+  var cpf = socioData.cpf || '';
+  var tipoImovel = socioData.tipoImovel || '';
+  var possuiVeiculo = socioData.possuiVeiculo || '';
+  var possuiFilhos = socioData.possuiFilhos || '';
+  var comQuemFilhos = socioData.comQuemFilhos || '';
 
   // Encontrar primeira linha vazia
   var lastRow = Math.max(socioSheet.getLastRow(), 1);
@@ -71,9 +71,21 @@ function createSocioeconomic(socioData, ss) {
       }
       if (allEmpty) {
         var target = startRow + r;
-        socioSheet.getRange(target, 1, 1, 11).setValues([values]);
+        // A-E
+        socioSheet.getRange(target, types.SOCIOECONOMIC_COL.CREATED_AT + 1).setValue(createdAt);
+        socioSheet.getRange(target, types.SOCIOECONOMIC_COL.CREATED_BY + 1).setValue(createdBy);
+        socioSheet.getRange(target, types.SOCIOECONOMIC_COL.UPDATED_AT + 1).setValue('');
+        socioSheet.getRange(target, types.SOCIOECONOMIC_COL.UPDATED_BY + 1).setValue('');
+        socioSheet.getRange(target, types.SOCIOECONOMIC_COL.CPF + 1).setValue(cpf);
+        // F-G remain empty (reserved)
+        // H-K socio fields
+        socioSheet.getRange(target, types.SOCIOECONOMIC_COL.TIPO_IMOVEL + 1).setValue(tipoImovel);
+        socioSheet.getRange(target, types.SOCIOECONOMIC_COL.POSSUI_VEICULO + 1).setValue(possuiVeiculo);
+        socioSheet.getRange(target, types.SOCIOECONOMIC_COL.POSSUI_FILHOS + 1).setValue(possuiFilhos);
+        socioSheet.getRange(target, types.SOCIOECONOMIC_COL.COM_QUEM_FILHOS + 1).setValue(comQuemFilhos);
         inserted = true;
-        break;
+        // return the inserted row index for convenience
+        return { row: target };
       }
     }
   }
@@ -81,7 +93,17 @@ function createSocioeconomic(socioData, ss) {
   if (!inserted) {
     var newRow = lastRow + 1;
     socioSheet.insertRowAfter(lastRow);
-    socioSheet.getRange(newRow, 1, 1, 11).setValues([values]);
+    var target = newRow;
+    socioSheet.getRange(target, types.SOCIOECONOMIC_COL.CREATED_AT + 1).setValue(createdAt);
+    socioSheet.getRange(target, types.SOCIOECONOMIC_COL.CREATED_BY + 1).setValue(createdBy);
+    socioSheet.getRange(target, types.SOCIOECONOMIC_COL.UPDATED_AT + 1).setValue('');
+    socioSheet.getRange(target, types.SOCIOECONOMIC_COL.UPDATED_BY + 1).setValue('');
+    socioSheet.getRange(target, types.SOCIOECONOMIC_COL.CPF + 1).setValue(cpf);
+    socioSheet.getRange(target, types.SOCIOECONOMIC_COL.TIPO_IMOVEL + 1).setValue(tipoImovel);
+    socioSheet.getRange(target, types.SOCIOECONOMIC_COL.POSSUI_VEICULO + 1).setValue(possuiVeiculo);
+    socioSheet.getRange(target, types.SOCIOECONOMIC_COL.POSSUI_FILHOS + 1).setValue(possuiFilhos);
+    socioSheet.getRange(target, types.SOCIOECONOMIC_COL.COM_QUEM_FILHOS + 1).setValue(comQuemFilhos);
+    return { row: target };
   }
 }
 
@@ -114,14 +136,12 @@ function updateSocioeconomic(socioData, ss) {
 
   if (!foundRow) throw new Error('CPF não encontrado na aba SOCIOECONOMIC: ' + socioData.cpf);
 
-  var values = [
-    socioData.tipoImovel,
-    socioData.possuiVeiculo,
-    socioData.possuiFilhos,
-    socioData.comQuemFilhos
-  ];
+  // Update individual socio fields to ensure correct columns (H-K)
+  socioSheet.getRange(foundRow, types.SOCIOECONOMIC_COL.TIPO_IMOVEL + 1).setValue(socioData.tipoImovel || '');
+  socioSheet.getRange(foundRow, types.SOCIOECONOMIC_COL.POSSUI_VEICULO + 1).setValue(socioData.possuiVeiculo || '');
+  socioSheet.getRange(foundRow, types.SOCIOECONOMIC_COL.POSSUI_FILHOS + 1).setValue(socioData.possuiFilhos || '');
+  socioSheet.getRange(foundRow, types.SOCIOECONOMIC_COL.COM_QUEM_FILHOS + 1).setValue(socioData.comQuemFilhos || '');
 
-  socioSheet.getRange(foundRow, types.SOCIOECONOMIC_COL.TIPO_IMOVEL + 1, 1, 4).setValues([values]);
   socioSheet.getRange(foundRow, types.SOCIOECONOMIC_COL.UPDATED_AT + 1).setValue(new Date());
   socioSheet.getRange(foundRow, types.SOCIOECONOMIC_COL.UPDATED_BY + 1).setValue(socioData.updatedBy || socioData.createdBy || '');
 
@@ -134,6 +154,10 @@ function updateSocioeconomic(socioData, ss) {
  * @param {string} [spreadsheetId] - ID da planilha (opcional, usa Types.DATABASE_ID se omitido).
  */
 function saveSocioeconomic(socioData, spreadsheetId) {
+  if (typeof types === 'undefined' || !types.SOCIOECONOMIC_COL) {
+    throw new Error('types.SOCIOECONOMIC_COL não disponível. Adicione a biblioteca `types`.');
+  }
+
   var ssId = spreadsheetId || types.DATABASE_ID;
   var ss = SpreadsheetApp.openById(ssId);
 
@@ -147,6 +171,7 @@ function saveSocioeconomic(socioData, spreadsheetId) {
     createdBy: socioData.createdBy,
     updatedBy: socioData.updatedBy
   };
+  Logger.log('saveSocioeconomic: formattedData=%s', JSON.stringify(formattedData));
 
   var personSheet = ss.getSheetByName(types.SHEET_NAMES.PERSON);
   if (!personSheet) throw new Error('Aba PERSON não encontrada.');

@@ -1,121 +1,140 @@
 /**
- * Recebe os dados do formulário SEEU e salva nas abas
- * `PERSON` e `CRIMINAL_PROCEDURE` da planilha de destino.
- * Usa a biblioteca `database` para validações e formatações.
- * @param {Object} formEvent - Evento do formulário ou objeto FormSeeu.
- * @returns {Object} resumo das operações (person/criminalProcedure/errors)
+ * SEEU - Send
+ * Prepara os dados do formulário SEEU e delega o envio ao `utils.sendStructured`.
+ * Exporta `onSubmitForm` que é usada nos testes e pelo gatilho de formulário.
  */
-function onSubmitForm(formEvent) {
-  // Parsear evento para objeto FormSeeu
-  var form = utils.parseFormSeeuEvent(formEvent);
 
-  var email = form.email || '';
-  var timestamp = form.timestamp || new Date();
+/**
+ * onSubmitForm
+ * @param {Object} form - objeto com os campos do formulário SEEU (nome amigável usado nos testes)
+ * @returns {Object} resultado do envio: { results: {...}, errors: [...] }
+ */
+function onSubmitForm(e) {
+  Logger.log('onSubmitForm: evento recebido');
 
-  Logger.log('onSubmitForm: email=%s, timestamp=%s', email, timestamp);
-  Logger.log('Form data (parsed): %s', JSON.stringify(form));
-
-  // Build personData only with properties actually present in the parsed form.
-  var personData = {};
-  var keys = ['cpf','name','motherName','fatherName','birthDate','education','phone','street','neighborhood','city','state'];
-  for (var i = 0; i < keys.length; i++) {
-    var k = keys[i];
-    if (form.hasOwnProperty(k)) {
-      personData[k] = form[k]; // include even if empty string -> will overwrite
-    }
-  }
-  // Always include createdBy/updatedBy
-  personData.createdBy = email;
-  personData.updatedBy = email;
-
-  // Incluir profissaoAtual do último atendimento se disponível
-  var ultimoAtendimento = utils.getLastSeeuAttendance(personData.cpf ? personData.cpf.replace(/\D+/g, '') : '');
-  if (ultimoAtendimento && ultimoAtendimento.profissao) {
-    personData.profissaoAtual = ultimoAtendimento.profissao;
-  }
-
-  var addressData = {
-    cpf: form.cpf,
-    street: form.street,
-    neighborhood: form.neighborhood,
-    city: form.city,
-    state: form.state,
-    createdBy: email,
-    updatedBy: email
-  };
-
-  var procData = {
-    cpf: form.cpf,
-    processNumber: form.processNumber,
-    sentenceRegime: form.regimeAtual,
-    progressionDate: form.progressionDate,
-    createdBy: email,
-    updatedBy: email
-  };
-
-  Logger.log('personData: %s', JSON.stringify(personData));
-  Logger.log('addressData: %s', JSON.stringify(addressData));
-  Logger.log('procData: %s', JSON.stringify(procData));
-
-  // Normalizar education: remover prefixo 'ENSINO ' se houver
-  var personDataEduc = personData.education || '';
-  personDataEduc = personDataEduc.toString().replace(/^ENSINO\s+/i, '').toUpperCase().trim();
-  personData.education = personDataEduc;
-
-  // Normalizar sentenceRegime: remover prefixo 'REGIME ' e padronizar para valores válidos
-  var regime = procData.sentenceRegime || '';
-  regime = regime.toString().replace(/^REGIME\s+/i, '').toUpperCase().trim();
-  procData.sentenceRegime = regime;
-
-  var summary = { person: null, criminalProcedure: null, errors: [] };
-  var db = (typeof database !== 'undefined') ? database : null;
-  Logger.log('database available: %s', db ? 'yes' : 'no');
-
-  var databaseId = types.DATABASE_ID;
-
-  // Salvar/atualizar Person
-  try {
-    Logger.log('Attempting to save Person...');
-    if (db && typeof db.savePerson === 'function') {
-      Logger.log('Using database.savePerson');
-      summary.person = db.savePerson(personData, databaseId);
-    } else if (typeof savePerson === 'function') {
-      Logger.log('Using global savePerson');
-      summary.person = savePerson(personData, databaseId);
-    } else {
-      throw new Error('savePerson não disponível');
-    }
-    Logger.log('Person saved: %s', JSON.stringify(summary.person));
-  } catch (e) {
-    Logger.log('Person error: %s', e.toString());
-    summary.errors.push({ table: 'PERSON', message: e.toString() });
+  // Aceita tanto um objeto `form` já mapeado quanto o evento do Forms (`e`)
+  var form = e;
+  if (e && (e.values || e.namedValues)) {
+    var values = e.values || [];
+    form = {
+      timestamp: values[types.FORM_SEEU_COL.TIMESTAMP] || '',
+      email: values[types.FORM_SEEU_COL.EMAIL] || '',
+      processNumber: values[types.FORM_SEEU_COL.PROCESS_NUMBER] || '',
+      name: values[types.FORM_SEEU_COL.NAME] || '',
+      motherName: values[types.FORM_SEEU_COL.MOTHER_NAME] || '',
+      fatherName: values[types.FORM_SEEU_COL.FATHER_NAME] || '',
+      birthDate: values[types.FORM_SEEU_COL.BIRTH_DATE] || '',
+      cpf: values[types.FORM_SEEU_COL.CPF] || '',
+      phone: values[types.FORM_SEEU_COL.PHONE] || '',
+      street: values[types.FORM_SEEU_COL.STREET] || '',
+      regimeAtual: values[types.FORM_SEEU_COL.REGIME_ATUAL] || '',
+      progressionDate: values[types.FORM_SEEU_COL.PROGRESSION_DATE] || '',
+      profissao: values[types.FORM_SEEU_COL.PROFISSAO] || '',
+      interesseEm: values[types.FORM_SEEU_COL.INTERESSE_EM] || '',
+      education: values[types.FORM_SEEU_COL.EDUCATION] || '',
+      comprovanteResidencia: values[types.FORM_SEEU_COL.COMPROVANTE_RESIDENCIA] || '',
+      comprovanteTrabalho: values[types.FORM_SEEU_COL.COMPROVANTE_TRABALHO] || '',
+      primeiraAssinatura: values[types.FORM_SEEU_COL.PRIMEIRA_ASSINATURA] || '',
+      comprovanteDispensaLegal: values[types.FORM_SEEU_COL.COMPROVANTE_DISPENSA_LEGAL] || '',
+      neighborhood: values[types.FORM_SEEU_COL.NEIGHBORHOOD] || '',
+      city: values[types.FORM_SEEU_COL.CITY] || '',
+      state: values[types.FORM_SEEU_COL.STATE] || ''
+    };
+    Logger.log('onSubmitForm: evento mapeado para form = %s', JSON.stringify(form));
   }
 
-  // Salvar/atualizar CriminalProcedure — só se houver número de processo ou regime
-  try {
-    var hasProc = (procData.processNumber || procData.sentenceRegime || procData.progressionDate);
-    Logger.log('hasProc: %s (processNumber=%s, sentenceRegime=%s, progressionDate=%s)', hasProc, procData.processNumber, procData.sentenceRegime, procData.progressionDate);
-    if (hasProc) {
-      Logger.log('Attempting to save CriminalProcedure...');
-      if (db && typeof db.saveCriminalProcedure === 'function') {
-        Logger.log('Using database.saveCriminalProcedure');
-        summary.criminalProcedure = db.saveCriminalProcedure(procData, databaseId);
-      } else if (typeof saveCriminalProcedure === 'function') {
-        Logger.log('Using global saveCriminalProcedure');
-        summary.criminalProcedure = saveCriminalProcedure(procData, databaseId);
+  if (!form || typeof form !== 'object') {
+    throw new Error('onSubmitForm: evento inválido');
+  }
+
+  // Helpers
+  function isFilled(v) {
+    return (typeof v !== 'undefined' && v !== null && String(v).trim() !== '');
+  }
+
+  // Montar payloads somente com os campos presentes
+  var personPayload = {};
+  var procPayload = {};
+  var socioPayload = {};
+
+  // Campos de Pessoa (Person)
+  var personFields = ['cpf','name','motherName','fatherName','birthDate','education','phone','street','neighborhood','city','state','profissao'];
+  var anyPerson = false;
+  for (var i = 0; i < personFields.length; i++) {
+    var key = personFields[i];
+    var val = form[key];
+    if (isFilled(val)) {
+      // Map `profissao` -> `profissaoAtual` to match database API
+      if (key === 'profissao') {
+        personPayload.profissaoAtual = String(val).trim();
       } else {
-        throw new Error('saveCriminalProcedure não disponível');
+        personPayload[key] = (typeof val === 'string') ? val.trim() : val;
       }
-      Logger.log('CriminalProcedure saved: %s', JSON.stringify(summary.criminalProcedure));
-    } else {
-      Logger.log('Skipping CriminalProcedure (no data)');
+      anyPerson = true;
     }
-  } catch (e) {
-    Logger.log('CriminalProcedure error: %s', e.toString());
-    summary.errors.push({ table: 'CRIMINAL_PROCEDURE', message: e.toString() });
+  }
+  if (anyPerson) {
+    personPayload.createdBy = form.email || '';
   }
 
-  Logger.log('Final summary: %s', JSON.stringify(summary));
-  return summary;
+  // Campos de Procedimento Criminal
+  var anyProc = false;
+  if (isFilled(form.processNumber)) {
+    procPayload.processNumber = String(form.processNumber).trim();
+    anyProc = true;
+  }
+  if (isFilled(form.regimeAtual)) {
+    procPayload.sentenceRegime = String(form.regimeAtual).trim();
+    anyProc = true;
+  }
+  if (isFilled(form.progressionDate)) {
+    procPayload.progressionDate = String(form.progressionDate).trim();
+    anyProc = true;
+  }
+  if (anyProc) {
+    procPayload.cpf = form.cpf || '';
+    procPayload.createdBy = form.email || '';
+  }
+
+  // Campos Socioeconômicos - somente se o formulário trouxer campos compatíveis
+  var socioFields = ['tipoImovel','possuiVeiculo','possuiFilhos','comQuemFilhos'];
+  var anySocio = false;
+  for (var j = 0; j < socioFields.length; j++) {
+    var sk = socioFields[j];
+    var sval = form[sk];
+    if (isFilled(sval)) {
+      socioPayload[sk] = (typeof sval === 'string') ? sval.trim() : sval;
+      anySocio = true;
+    }
+  }
+  if (anySocio) {
+    socioPayload.cpf = form.cpf || '';
+    socioPayload.createdBy = form.email || '';
+  }
+
+  // Construir objeto de envio apenas com recursos preenchidos
+  var resources = {};
+  if (anyPerson) resources.person = personPayload;
+  if (anyProc) resources.criminalProcedure = procPayload;
+  if (anySocio) resources.socioeconomic = socioPayload;
+
+  if (Object.keys(resources).length === 0) {
+    Logger.log('onSubmitForm: nenhum campo aplicável para enviar ao database');
+    return { results: {}, errors: [] };
+  }
+
+  // Delegar para utils
+  try {
+    var res = utils.sendStructured(resources);
+    return res;
+  } catch (e) {
+    Logger.log('onSubmitForm error: %s', e.toString());
+    return { results: {}, errors: [{ message: e.toString() }] };
+  }
+}
+
+/** Alias compatível com a solicitação do time: onSubmitSend */
+function onSubmitSend(form) {
+  return onSubmitForm(form);
 }
 

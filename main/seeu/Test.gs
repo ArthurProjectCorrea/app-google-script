@@ -188,6 +188,20 @@ function buildPdfData(form) {
   };
 }
 
+/**
+ * Testa o onSubmitForm enviando dados de exemplo.
+ */
+function testOnSubmitFormSend() {
+  var form = createSampleFormData();
+  Logger.log('testOnSubmitFormSend: form=%s', JSON.stringify(form));
+  try {
+    var res = onSubmitForm(form);
+    Logger.log('testOnSubmitFormSend result: %s', JSON.stringify(res));
+  } catch (e) {
+    Logger.log('testOnSubmitFormSend error: %s', e.toString());
+  }
+}
+
 // ============================================================================
 // TESTE COM DADOS DA PLANILHA
 // ============================================================================
@@ -336,5 +350,34 @@ function testSeeuSendPartialFields() {
 
   var res = onSubmitForm(form);
   Logger.log('testSeeuSendPartialFields result: %s', JSON.stringify(res));
+}
+
+/**
+ * Test helper to exercise the new utils.processSeeuSubmission directly.
+ */
+function testUtilsProcessSeeu() {
+  var form = createSampleFormData();
+  form.email = 'unit@test.example.com';
+  try {
+    if (!utils.isDatabaseAvailable()) {
+      Logger.log('AVISO: biblioteca `database` não encontrada no projeto. onSubmitForm provavelmente falhará a menos que existam funções globais de fallback.');
+    }
+    var res = onSubmitForm(form);
+    Logger.log('testUtilsProcessSeeu result=%s', JSON.stringify(res));
+    return res;
+  } catch (e) {
+    Logger.log('testUtilsProcessSeeu error=%s', e.toString());
+    throw e;
+  }
+}
+
+function testDatabaseAvailable() {
+  if (utils.isDatabaseAvailable()) {
+    Logger.log('database library disponível. OK.');
+    return true;
+  } else {
+    Logger.log('database library NÃO disponível. Adicione a biblioteca `database` ao projeto (identificador: "database").');
+    return false;
+  }
 }
 

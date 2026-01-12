@@ -251,6 +251,20 @@ function runTestFullFlow() {
 
 ---
 
+## 🔁 Refatoração: `Send` centralizado (utils)
+
+- Foi adicionada a nova biblioteca utilitária `utils/Send.gs` para centralizar a lógica genérica de envio para o `database`.
+- Funções principais expostas em `utils`:
+  - `utils.sendToDatabase(fnName, payload, databaseId)` — invoca funções do `database` de forma genérica, com fallback para funções globais.
+  - `utils.sendBatch(ops, databaseId)` — executa múltiplas operações de forma atômica (retorna `{ results, errors }`).
+
+Benefícios:
+- Reduz duplicação de código de invocação ao `database` entre projetos.
+- Mantém regras de negócio e normalizações **dentro** dos projetos (por exemplo, SEEU ou ES), evitando lógica personalizada em `utils`.
+- Facilita testes unitários: os projetos preparam dados e chamam a API genérica `utils.sendBatch`.
+
+---
+
 ## ⚡ Solução de Problemas
 
 ### Erro: "types.DATABASE_ID não está definido"

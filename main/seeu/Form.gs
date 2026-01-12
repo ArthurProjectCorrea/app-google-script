@@ -1,37 +1,4 @@
-/**
- * Testa a função de geração de URL para debug.
- * @param {string} cpf - CPF de teste.
- */
-function testarGeracaoUrl(cpf) {
-  var result = gerarUrlAutopreenchimento(cpf || '12345678900');
-  Logger.log('Resultado do teste:');
-  Logger.log(JSON.stringify(result, null, 2));
-  if (result.url) {
-    Logger.log('URL completa: ' + result.url);
-    Logger.log('URL base: ' + types.SEEU_FORM_URL);
-  }
-  return result;
-}
 
-/**
- * Converte sigla de estado para nome completo.
- * Se for sigla, retorna o nome; se for nome, retorna como está.
- * @param {string} estado - Sigla ou nome do estado
- * @returns {string} Nome completo do estado
- */
-function converterEstado(estado) {
-  if (!estado) return '';
-  
-  var estNorm = estado.toString().toUpperCase().trim();
-  
-  // Se tem 2 caracteres, tentar como sigla
-  if (estNorm.length === 2) {
-    return utils.BRAZILIAN_STATES[estNorm] || estNorm;
-  }
-  
-  // Se tem mais de 2, já é nome completo
-  return estNorm;
-}
 
 /**
  * Mapeamento dos IDs dos campos do formulário Google.
@@ -90,28 +57,14 @@ function gerarUrlAutopreenchimento(cpf, numeroProcesso) {
     // Log completo para depuração (mostra todas as chaves retornadas por searchPerson/searchComplete)
     Logger.log('gerarUrlAutopreenchimento: pessoa completa = %s', JSON.stringify(pessoa));
 
-    // Construir endereço verificando várias chaves possíveis para compatibilidade
-    var endereco = {};
-    var streetVal = pessoa.logradouro || pessoa.street || pessoa.endereco || pessoa.address || '';
-    var bairroVal = pessoa.bairro || pessoa.neighborhood || '';
-    var cityVal = pessoa.cidade || pessoa.city || '';
-    var stateVal = pessoa.estado || pessoa.state || '';
-
-    if (streetVal || bairroVal || cityVal || stateVal) {
-      endereco.logradouro = utils.formatToUpper(streetVal || '');
-      endereco.bairro = utils.formatToUpper(bairroVal || '');
-      endereco.cidade = utils.formatToUpper(cityVal || '');
-      endereco.estado = stateVal || '';
-      Logger.log('gerarUrlAutopreenchimento: usando endereço detectado = %s', JSON.stringify(endereco));
-    } else {
-      // fallback para pessoa.enderecos (compatibilidade retroativa)
-      var fallback = pessoa.enderecos && pessoa.enderecos.length > 0 ? pessoa.enderecos[0] : {};
-      endereco.logradouro = utils.formatToUpper(fallback.logradouro || fallback.street || '');
-      endereco.bairro = utils.formatToUpper(fallback.bairro || fallback.neighborhood || '');
-      endereco.cidade = utils.formatToUpper(fallback.cidade || fallback.city || '');
-      endereco.estado = fallback.estado || fallback.state || '';
-      Logger.log('gerarUrlAutopreenchimento: usando pessoa.enderecos fallback = %s', JSON.stringify(endereco));
-    }
+    // Endereço: agora armazenado diretamente em `pessoa` (logradouro, bairro, cidade, estado)
+    var endereco = {
+      logradouro: pessoa.logradouro || '',
+      bairro: pessoa.bairro || '',
+      cidade: pessoa.cidade || '',
+      estado: pessoa.estado || ''
+    };
+    Logger.log('gerarUrlAutopreenchimento: usando endereço da pessoa = %s', JSON.stringify(endereco));
     
     // Se numeroProcesso foi fornecido, buscar o procedimento específico
     var procedimento = {};
@@ -178,9 +131,9 @@ function gerarUrlAutopreenchimento(cpf, numeroProcesso) {
       Logger.log('gerarUrlAutopreenchimento: cidade = %s', endereco.cidade);
     }
     if (endereco.estado) {
-      // converterEstado já aceita sigla ou nome; garantir formato aceito pelo Form
-      entries[FORM_ENTRY_IDS.estado] = converterEstado(endereco.estado);
-      Logger.log('gerarUrlAutopreenchimento: estado = %s -> %s', endereco.estado, converterEstado(endereco.estado));
+      // Estado já está armazenado no formato correto em database
+      entries[FORM_ENTRY_IDS.estado] = endereco.estado;
+      Logger.log('gerarUrlAutopreenchimento: estado = %s', endereco.estado);
     }
     
     // Dados do procedimento criminal
@@ -231,10 +184,3 @@ function gerarUrlAutopreenchimento(cpf, numeroProcesso) {
     return { error: e.toString() };
   }
 }
-
-/**
- * Formata CPF com máscara XXX.XXX.XXX-XX
- * @param {string} cpf - CPF com ou sem máscara.
- * @returns {string} CPF formatado.
- */
-// usar Utils.getLastSeeuAttendance e Utils.formatCPF

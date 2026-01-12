@@ -174,6 +174,56 @@ function findRowByColumnValue(ss, sheetName, columnIndex, value, startRow) {
 }
 
 /**
+ * Busca endereços (logradouro, bairro, cidade, estado) na aba PERSON pelo CPF.
+ * Retorna um array de endereços ou { error: '...' } em caso de falha.
+ * @param {Object} filtros - { cpf }
+ * @param {Spreadsheet} [ss]
+ * @returns {Array|Object}
+ */
+function searchAddress(filtros, ss) {
+  try {
+    filtros = filtros || {};
+    var spreadsheet = ss || SpreadsheetApp.openById(types.DATABASE_ID);
+    var sheet = spreadsheet.getSheetByName(types.SHEET_NAMES.PERSON);
+    if (!sheet) throw new Error('Aba PERSON não encontrada.');
+
+    var data = sheet.getDataRange().getValues();
+    var results = [];
+    var cpfNorm = filtros.cpf ? filtros.cpf.toString().replace(/\D+/g, '') : '';
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rowCpf = (row[types.PERSON_COL.CPF] || '').toString().replace(/\D+/g, '');
+      if (cpfNorm && rowCpf.indexOf(cpfNorm) === -1) continue;
+
+      var street = row[types.PERSON_COL.STREET] || '';
+      var neighborhood = row[types.PERSON_COL.NEIGHBORHOOD] || '';
+      var city = row[types.PERSON_COL.CITY] || '';
+      var state = row[types.PERSON_COL.STATE] || '';
+
+      if (street || neighborhood || city || state) {
+        results.push({
+          cpf: row[types.PERSON_COL.CPF] || '',
+          logradouro: street,
+          bairro: neighborhood,
+          cidade: city,
+          estado: state,
+          createdBy: row[types.PERSON_COL.CREATED_BY] || '',
+          createdAt: row[types.PERSON_COL.CREATED_AT] || '',
+          updatedBy: row[types.PERSON_COL.UPDATED_BY] || '',
+          updatedAt: row[types.PERSON_COL.UPDATED_AT] || ''
+        });
+      }
+    }
+
+    return results;
+  } catch (e) {
+    Logger.log('searchAddress error: ' + e.toString());
+    return { error: e.toString() };
+  }
+}
+
+/**
  * Busca o último atendimento na aba FORM_SEEU por CPF (retorna profissao e interesseEm).
  * @param {string} cpf
  * @param {Spreadsheet} [ss]
@@ -212,27 +262,108 @@ function getLastSeeuAttendance(cpf, ss) {
 }
 
 /**
- * Parse event do Form SEEU para objeto estruturado (compatível com parseFormEvent).
- * @param {Object} formEvent
- * @returns {Object}
+ * Busca socioeconômico por CPF. Retorna o último registro (mais recente) ou null.
+ * @param {string} cpf - CPF com ou sem máscara
+ * @param {Spreadsheet} [ss]
+ * @returns {Object|null}
  */
-function parseFormSeeuEvent(formEvent) {
-  if (formEvent && formEvent.cpf) return formEvent;
-  if (formEvent && formEvent.values && Array.isArray(formEvent.values)) {
-    var v = formEvent.values;
+function getSocioByCpf(cpf, ss) {
+  try {
+    if (!cpf) { Logger.log('getSocioByCpf: cpf ausente'); return null; }
+    var cpfNorm = cpf.toString().replace(/\D+/g, '');
+    if (!cpfNorm) { Logger.log('getSocioByCpf: cpf normalizado vazio for input=%s', cpf); return null; }
+
+    var spreadsheet = ss || SpreadsheetApp.openById(types.DATABASE_ID);
+    var sheet = spreadsheet.getSheetByName(types.SHEET_NAMES.SOCIOECONOMIC);
+    if (!sheet) { Logger.log('getSocioByCpf: aba SOCIOECONOMIC não encontrada'); return null; }
+
+    var data = sheet.getDataRange().getValues();
+    var lastRow = null;
+    var checked = 0;
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rowCpf = (row[types.SOCIOECONOMIC_COL.CPF] || '').toString().replace(/\D+/g, '');
+      if (!rowCpf) continue;
+      checked++;
+      if (rowCpf === cpfNorm) {
+        lastRow = row;
+      }
+    }
+    Logger.log('getSocioByCpf: cpf=%s cpfNorm=%s checkedRows=%s found=%s', cpf, cpfNorm, checked, lastRow ? 'yes' : 'no');
+    if (!lastRow) return null;
+
     return {
-      timestamp: v[0], email: v[1], processNumber: v[2], name: v[3], motherName: v[4], fatherName: v[5], birthDate: v[6], cpf: v[7], phone: v[8], street: v[9], regimeAtual: v[10], progressionDate: v[11], profissao: v[12], interesseEm: v[13], education: v[14], comprovanteResidencia: v[15], comprovanteTrabalho: v[16], primeiraAssinatura: v[17], comprovanteDispensaLegal: v[18], neighborhood: v[19], city: v[20], state: v[21]
+      cpf: lastRow[types.SOCIOECONOMIC_COL.CPF] || '',
+      tipoImovel: lastRow[types.SOCIOECONOMIC_COL.TIPO_IMOVEL] || '',
+      possuiVeiculo: lastRow[types.SOCIOECONOMIC_COL.POSSUI_VEICULO] || '',
+      possuiFilhos: lastRow[types.SOCIOECONOMIC_COL.POSSUI_FILHOS] || '',
+      comQuemFilhos: lastRow[types.SOCIOECONOMIC_COL.COM_QUEM_FILHOS] || '',
+      createdBy: lastRow[types.SOCIOECONOMIC_COL.CREATED_BY] || '',
+      createdAt: lastRow[types.SOCIOECONOMIC_COL.CREATED_AT] || '',
+      updatedBy: lastRow[types.SOCIOECONOMIC_COL.UPDATED_BY] || '',
+      updatedAt: lastRow[types.SOCIOECONOMIC_COL.UPDATED_AT] || ''
     };
+  } catch (e) {
+    Logger.log('getSocioByCpf error: ' + e.toString());
+    return null;
   }
-  if (formEvent && formEvent.namedValues) {
-    var nv = formEvent.namedValues;
-    var getValue = function(key) { return nv[key] && nv[key][0] ? nv[key][0] : ''; };
-    return {
-      timestamp: getValue('Carimbo de data/hora'), email: getValue('Endereço de e-mail'), processNumber: getValue('Nº DO PROCESSO'), name: getValue('NOME COMPLETO'), motherName: getValue('NOME COMPLETO DA MÃE'), fatherName: getValue('NOME COMPLETO DO PAI'), birthDate: getValue('DATA DE NASCIMENTO'), cpf: getValue('CPF'), phone: getValue('TELEFONE'), street: getValue('LOGRADOURO'), regimeAtual: getValue('REGIME ATUAL'), progressionDate: getValue('DATA PREVISTRA PARA PROGRESSÃO DE REGIME'), profissao: getValue('QUAL A PROFISSÃO ATUAL'), interesseEm: getValue('INTERESSE EM:'), education: getValue('ESCOLARIDADE'), comprovanteResidencia: getValue('APRESENTOU COMPROVANTE DE RESIDÊNCIA?'), comprovanteTrabalho: getValue('APRESENTOU COMPROVANTE DE TRABALHO LÍCITO?'), primeiraAssinatura: getValue('É A PRIMEIRA ASSINATURA?'), comprovanteDispensaLegal: getValue('APRESENTOU COMPROVANTE DE DISPENSA LEGAL?'), neighborhood: getValue('BAIRRO'), city: getValue('CIDADE'), state: getValue('ESTADO')
-    };
-  }
-  return {};
 }
+
+/**
+ * Busca registros socioeconômicos com filtros opcionais.
+ * @param {Object} filtros - { cpf, tipoImovel, possuiVeiculo, possuiFilhos }
+ * @param {Spreadsheet} [ss]
+ * @returns {Array} Array de registros socioeconômicos
+ */
+function searchSocioeconomic(filtros, ss) {
+  try {
+    filtros = filtros || {};
+    var sheet = (ss || SpreadsheetApp.openById(types.DATABASE_ID)).getSheetByName(types.SHEET_NAMES.SOCIOECONOMIC);
+    if (!sheet) throw new Error('Aba SOCIOECONOMIC não encontrada.');
+
+    var data = sheet.getDataRange().getValues();
+    var resultados = [];
+
+    var cpfNorm = filtros.cpf ? filtros.cpf.toString().replace(/\D+/g, '') : '';
+    var tipoNorm = filtros.tipoImovel ? filtros.tipoImovel.toString().trim().toUpperCase() : '';
+    var veicNorm = filtros.possuiVeiculo ? filtros.possuiVeiculo.toString().trim().toUpperCase() : '';
+    var filhosNorm = filtros.possuiFilhos ? filtros.possuiFilhos.toString().trim().toUpperCase() : '';
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rowCpf = (row[types.SOCIOECONOMIC_COL.CPF] || '').toString().replace(/\D+/g, '');
+      var rowTipo = (row[types.SOCIOECONOMIC_COL.TIPO_IMOVEL] || '').toString().trim().toUpperCase();
+      var rowVeic = (row[types.SOCIOECONOMIC_COL.POSSUI_VEICULO] || '').toString().trim().toUpperCase();
+      var rowFilhos = (row[types.SOCIOECONOMIC_COL.POSSUI_FILHOS] || '').toString().trim().toUpperCase();
+
+      var cpfMatch = !cpfNorm || (rowCpf.indexOf(cpfNorm) !== -1);
+      var tipoMatch = !tipoNorm || (rowTipo === tipoNorm);
+      var veicMatch = !veicNorm || (rowVeic === veicNorm);
+      var filhosMatch = !filhosNorm || (rowFilhos === filhosNorm);
+
+      if (cpfMatch && tipoMatch && veicMatch && filhosMatch) {
+        resultados.push({
+          cpf: row[types.SOCIOECONOMIC_COL.CPF] || '',
+          tipoImovel: row[types.SOCIOECONOMIC_COL.TIPO_IMOVEL] || '',
+          possuiVeiculo: row[types.SOCIOECONOMIC_COL.POSSUI_VEICULO] || '',
+          possuiFilhos: row[types.SOCIOECONOMIC_COL.POSSUI_FILHOS] || '',
+          comQuemFilhos: row[types.SOCIOECONOMIC_COL.COM_QUEM_FILHOS] || '',
+          createdBy: row[types.SOCIOECONOMIC_COL.CREATED_BY] || '',
+          createdAt: row[types.SOCIOECONOMIC_COL.CREATED_AT] || '',
+          updatedBy: row[types.SOCIOECONOMIC_COL.UPDATED_BY] || '',
+          updatedAt: row[types.SOCIOECONOMIC_COL.UPDATED_AT] || ''
+        });
+      }
+    }
+
+    return resultados;
+  } catch (e) {
+    Logger.log('searchSocioeconomic error: ' + e.toString());
+    return { error: e.toString() };
+  }
+}
+
+
 
 // =============================================================================
 // BUSCA DE PESSOAS
@@ -309,61 +440,6 @@ function searchPerson(filtros, ss) {
     return resultados;
   } catch (e) {
     Logger.log('searchPerson error: ' + e.toString());
-    return { error: e.toString() };
-  }
-}
-
-// =============================================================================
-// BUSCA DE ENDEREÇOS
-// =============================================================================
-
-/**
- * Busca endereços na aba ADDRESS com filtros por CPF.
- * @param {Object} filtros - Objeto com os filtros de busca.
- * @param {string} [filtros.cpf] - Filtro por CPF (parcial ou completo).
- * @param {Spreadsheet} ss - Objeto Spreadsheet já aberto.
- * @returns {Array} Array de objetos com os registros encontrados.
- */
-function searchAddress(filtros, ss) {
-  try {
-    var sheet = ss.getSheetByName(types.SHEET_NAMES.PERSON);
-    if (!sheet) throw new Error('Aba PERSON não encontrada.');
-
-    var data = sheet.getDataRange().getValues();
-    var resultados = [];
-
-    var cpfNorm = filtros.cpf ? filtros.cpf.replace(/\D+/g, '') : '';
-
-    for (var i = 1; i < data.length; i++) {
-      var row = data[i];
-      
-      var rowCpf = row[types.PERSON_COL.CPF] ? row[types.PERSON_COL.CPF].toString().replace(/\D+/g, '') : '';
-
-      var cpfMatch = !cpfNorm || rowCpf.indexOf(cpfNorm) !== -1;
-
-      if (cpfMatch) {
-        var endereco = {
-          cpf: row[types.PERSON_COL.CPF] || '',
-          logradouro: row[types.PERSON_COL.STREET] || '',
-          bairro: row[types.PERSON_COL.NEIGHBORHOOD] || '',
-          cidade: row[types.PERSON_COL.CITY] || '',
-          estado: row[types.PERSON_COL.STATE] || '',
-          criadoPor: row[types.PERSON_COL.CREATED_BY] || '',
-          criadoEm: row[types.PERSON_COL.CREATED_AT] || '',
-          atualizadoPor: row[types.PERSON_COL.UPDATED_BY] || '',
-          atualizadoEm: row[types.PERSON_COL.UPDATED_AT] || ''
-        };
-        
-        // Só adicionar se houver pelo menos um campo de endereço preenchido
-        if (endereco.logradouro || endereco.bairro || endereco.cidade || endereco.estado) {
-          resultados.push(endereco);
-        }
-      }
-    }
-
-    return resultados;
-  } catch (e) {
-    Logger.log('searchAddress error: ' + e.toString());
     return { error: e.toString() };
   }
 }

@@ -209,3 +209,96 @@ function testBuildEsEncaminhamentosPrefillUrl() {
     return { error: e.toString() };
   }
 }
+
+/**
+ * Test helper for utils.processEsRow and utils.mapEsRowToPerson
+ */
+function testUtilsProcessEsRow() {
+  var row = [];
+  var c = types.ES_ENCAMINHAMENTOS_COL;
+  // Minimal required columns
+  row[c.CPF] = '32165498700';
+}
+
+/**
+ * Testa o envio pelo trigger `onFormSubmitFile` incluindo chamada para `onSubmitSend`.
+ */
+function testOnFormSubmitFileSend() {
+  var mockEvent = {
+    values: [
+      new Date().toISOString(), // TIMESTAMP A
+      'es-sender@example.com', // EMAIL B
+      'ATENDIMENTO', // TIPO C
+      'Carlos Teste', // NAME D
+      'Mae Teste', // MOTHER_NAME E
+      'Pai Teste', // FATHER_NAME F
+      '1988-03-05', // BIRTH_DATE G
+      '55566677788', // CPF H
+      'ENSINO MÉDIO', // EDUCATION I
+      'SOLTEIRO', // CIVIL_STATUS J
+      'M', // SEX K
+      '', // GENDER_IDENTITY L
+      '', // SEXUAL_ORIENTATION M
+      '', // RELIGION N
+      'BRANCA', // RACE_SELF_DECLARED O
+      'BRASILEIRA', // NATIONALITY P
+      'REINSERCAO', // PERSON_TYPE Q
+      'ABERTO', // CURRENT_REGIME R
+      '11900001111', // PHONE S
+      'Rua Teste 1', // STREET T
+      'Bairro Teste', // NEIGHBORHOOD U
+      'Fortaleza', // CITY V
+      'CE', // STATE W
+      'PROPRIO', // PROPERTY_TYPE X
+      'SIM', // HAS_VEHICLE Y
+      'SIM', // HAS_CHILDREN Z
+      'Filhos com a mãe', // CHILDREN_WITH_WHOM AA
+      'Encaminhamento Y', // ENCAMINHAMENTOS AB
+      'Marceneiro', // CURRENT_PROFESSION AC
+      '2020-02-01', // START_DATE AD
+      '1800' // MONTHLY_INCOME AE
+    ]
+  };
+
+  var res = onFormSubmitFile(mockEvent);
+  Logger.log('testOnFormSubmitFileSend result: %s', JSON.stringify(res));
+}
+
+  row[c.EMAIL] = 'es-test@example.com';
+  row[c.NAME] = 'Teste ES';
+  row[c.STREET] = 'Rua Mock, 1';
+  row[c.CITY] = 'Fortaleza';
+  row[c.STATE] = 'CE';
+
+  try {
+    var mapped = mapEsRowToPerson(row);
+    Logger.log('testUtilsProcessEsRow mapped person: %s', JSON.stringify(mapped));
+
+    var socio = mapEsRowToSocioeconomic(row);
+    var ops = [
+      { fnName: 'savePerson', payload: mapped, label: 'PERSON' },
+      { fnName: 'saveSocioeconomic', payload: socio, label: 'SOCIOECONOMIC' }
+    ];
+
+    if (!utils.isDatabaseAvailable()) {
+      Logger.log('AVISO: biblioteca `database` não encontrada no projeto. Este teste tentará chamar funções globais de fallback (pode falhar).');
+    }
+
+    var res = utils.sendBatch(ops, types.DATABASE_ID);
+    Logger.log('testUtilsProcessEsRow result: %s', JSON.stringify(res));
+    return res;
+  } catch (e) {
+    Logger.log('testUtilsProcessEsRow error: %s', e.toString());
+    throw e;
+  }
+}
+
+function testDatabaseAvailable() {
+  if (utils.isDatabaseAvailable()) {
+    Logger.log('database library disponível. OK.');
+    return true;
+  } else {
+    Logger.log('database library NÃO disponível. Adicione a biblioteca `database` ao projeto (identificador: \"database\").');
+    return false;
+  }
+}

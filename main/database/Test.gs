@@ -94,3 +94,47 @@ function testCreatePersonWithCriminalProcedure() {
 
   Logger.log('\n=== TESTE CONCLUÍDO COM SUCESSO ===');
 }
+
+/**
+ * Testa salvar socioeconômico - create/update
+ */
+function testSaveSocioeconomic() {
+  var databaseId = types.DATABASE_ID;
+  var testEmail = Session.getActiveUser().getEmail() || 'teste@example.com';
+  var cpf = '99988877766';
+
+  // Garantir pessoa
+  var personData = {
+    cpf: cpf,
+    name: 'SOCIO TEST',
+    createdBy: testEmail
+  };
+  try { savePerson(personData, databaseId); } catch (e) { Logger.log('savePerson warning: %s', e.toString()); }
+
+  var socio = {
+    cpf: cpf,
+    tipoImovel: 'PRÓPRIO',
+    possuiVeiculo: 'SIM',
+    possuiFilhos: 'SIM',
+    comQuemFilhos: 'COM A MÃE',
+    createdBy: testEmail
+  };
+
+  try {
+    var res = saveSocioeconomic(socio, databaseId);
+    Logger.log('saveSocioeconomic result: %s', JSON.stringify(res));
+  } catch (e) {
+    Logger.log('ERROR saveSocioeconomic: %s', e.toString());
+  }
+
+  // Atualizar
+  socio.possuiVeiculo = 'NAO';
+  socio.updatedBy = testEmail;
+  try {
+    var res2 = saveSocioeconomic(socio, databaseId);
+    Logger.log('saveSocioeconomic update result: %s', JSON.stringify(res2));
+  } catch (e) {
+    Logger.log('ERROR saveSocioeconomic update: %s', e.toString());
+  }
+}
+

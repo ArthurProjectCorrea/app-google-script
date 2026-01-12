@@ -227,9 +227,57 @@ function onSubmitGeneratePdfEs(e) {
 /**
  * Função de trigger para o formulário ES_ENCAMINHAMENTOS.
  * Configure como trigger "On form submit" no editor GAS.
- * Chama onSubmitGeneratePdfEs para processar o envio.
+ * Chama onSubmitGeneratePdfEs para processar o envio e também envia dados ao database.
  * @param {Object} e - Evento do formulário.
  */
 function onFormSubmitFile(e) {
-  return onSubmitGeneratePdfEs(e);
+  // Gerar PDF (se aplicável)
+  var pdfRes = onSubmitGeneratePdfEs(e);
+
+  // Tentar enviar dados ao database usando onSubmitSend (mapear valores do evento)
+  try {
+    var values = e.values || [];
+    var formForSend = {
+      timestamp: values[types.ES_ENCAMINHAMENTOS_COL.TIMESTAMP] || '',
+      email: values[types.ES_ENCAMINHAMENTOS_COL.EMAIL] || '',
+      name: values[types.ES_ENCAMINHAMENTOS_COL.NAME] || '',
+      motherName: values[types.ES_ENCAMINHAMENTOS_COL.MOTHER_NAME] || '',
+      fatherName: values[types.ES_ENCAMINHAMENTOS_COL.FATHER_NAME] || '',
+      birthDate: values[types.ES_ENCAMINHAMENTOS_COL.BIRTH_DATE] || '',
+      cpf: values[types.ES_ENCAMINHAMENTOS_COL.CPF] || '',
+      education: values[types.ES_ENCAMINHAMENTOS_COL.EDUCATION] || '',
+      civilStatus: values[types.ES_ENCAMINHAMENTOS_COL.CIVIL_STATUS] || '',
+      sex: values[types.ES_ENCAMINHAMENTOS_COL.SEX] || '',
+      genderIdentity: values[types.ES_ENCAMINHAMENTOS_COL.GENDER_IDENTITY] || '',
+      sexualOrientation: values[types.ES_ENCAMINHAMENTOS_COL.SEXUAL_ORIENTATION] || '',
+      religion: values[types.ES_ENCAMINHAMENTOS_COL.RELIGION] || '',
+      raceSelfDeclared: values[types.ES_ENCAMINHAMENTOS_COL.RACE_SELF_DECLARED] || '',
+      nationality: values[types.ES_ENCAMINHAMENTOS_COL.NATIONALITY] || '',
+      personType: values[types.ES_ENCAMINHAMENTOS_COL.PERSON_TYPE] || '',
+      currentRegime: values[types.ES_ENCAMINHAMENTOS_COL.CURRENT_REGIME] || '',
+      phone: values[types.ES_ENCAMINHAMENTOS_COL.PHONE] || '',
+      street: values[types.ES_ENCAMINHAMENTOS_COL.STREET] || '',
+      neighborhood: values[types.ES_ENCAMINHAMENTOS_COL.NEIGHBORHOOD] || '',
+      city: values[types.ES_ENCAMINHAMENTOS_COL.CITY] || '',
+      state: values[types.ES_ENCAMINHAMENTOS_COL.STATE] || '',
+      propertyType: values[types.ES_ENCAMINHAMENTOS_COL.PROPERTY_TYPE] || '',
+      hasVehicle: values[types.ES_ENCAMINHAMENTOS_COL.HAS_VEHICLE] || '',
+      hasChildren: values[types.ES_ENCAMINHAMENTOS_COL.HAS_CHILDREN] || '',
+      childrenWithWhom: values[types.ES_ENCAMINHAMENTOS_COL.CHILDREN_WITH_WHOM] || '',
+      currentProfession: values[types.ES_ENCAMINHAMENTOS_COL.CURRENT_PROFESSION] || '',
+      startDate: values[types.ES_ENCAMINHAMENTOS_COL.START_DATE] || '',
+      monthlyIncome: values[types.ES_ENCAMINHAMENTOS_COL.MONTHLY_INCOME] || ''
+    };
+
+    var sendRes = onSubmitSend(formForSend);
+    if (sendRes && sendRes.errors && sendRes.errors.length) {
+      Logger.log('onFormSubmitFile: send returned errors: %s', JSON.stringify(sendRes.errors));
+    } else {
+      Logger.log('onFormSubmitFile: send success');
+    }
+  } catch (err) {
+    Logger.log('onFormSubmitFile send error: %s', err.toString());
+  }
+
+  return pdfRes;
 }

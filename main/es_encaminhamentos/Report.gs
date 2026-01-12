@@ -4,13 +4,13 @@
  */
 
 /**
- * Gera o relatório de atendimentos SEEU usando a função genérica em utils.
+ * Gera o relatório de atendimentos para a aba de encaminhamentos usando a função genérica em utils.
  * @returns {Object} Resultado com sucesso ou erro.
  */
 function gerarRelatorioSeeu() {
   try {
-    var sheetName = types.SEEU_SHEET_NAMES.FORM_SEEU;
-    var result = utils.gerarRelatorioPorAtendente(sheetName, types.FORM_SEEU_COL);
+    var sheetName = types.ES_ENCAMINHAMENTOS_SHEET_NAME;
+    var result = utils.gerarRelatorioPorAtendente(sheetName, types.ES_ENCAMINHAMENTOS_COL);
     if (result.error) return { error: result.error };
 
     var reportData = result.reportRows || [];
@@ -39,60 +39,6 @@ function gerarRelatorioSeeu() {
 }
 
 
-
-/**
- * Handler de trigger que (re)gera o relatório por atendente quando um formulário é submetido.
- * Pode ser usado como trigger instalável "On form submit" na planilha.
- * @param {Object|string} e - Event object do trigger ou nome da aba (string) para chamada manual.
- * @returns {Object} Resultado com sucesso ou erro.
- */
-function onsubmitReport(e) {
-  try {
-    var sheetName;
-    if (typeof e === 'string') {
-      sheetName = e;
-    } else if (e && e.range && typeof e.range.getSheet === 'function') {
-      sheetName = e.range.getSheet().getName();
-    } else if (e && e.source && typeof e.source.getActiveRange === 'function') {
-      // tentativa alternativa de obter a aba (melhora compatibilidade)
-      sheetName = e.range ? e.range.getSheet().getName() : e.source.getActiveRange().getSheet().getName();
-    } else {
-      // padrão: FORM_SEEU
-      sheetName = types.SEEU_SHEET_NAMES.FORM_SEEU;
-    }
-
-    var cols = null;
-    if (sheetName === types.SEEU_SHEET_NAMES.FORM_SEEU) cols = types.FORM_SEEU_COL;
-    else if (sheetName === types.ES_ENCAMINHAMENTOS_SHEET_NAME) cols = types.ES_ENCAMINHAMENTOS_COL;
-    else return { error: 'Aba não suportada para onsubmitReport: ' + sheetName };
-
-    var result = utils.gerarRelatorioPorAtendente(sheetName, cols);
-    if (result.error) return result;
-
-    var reportData = result.reportRows || [];
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var reportSheet = ss.getSheetByName('REPORT') || ss.insertSheet('REPORT');
-
-    reportSheet.clear();
-    reportSheet.getRange(1, 1, 1, 3).setValues([['DIA', 'NOME', 'ATENDIMENTOS']]);
-
-    if (reportData.length > 0) {
-      reportSheet.getRange(2, 1, reportData.length, 3).setValues(reportData);
-    }
-
-    reportSheet.getRange(1, 1, 1, 3).setFontWeight('bold');
-
-    return {
-      sucesso: true,
-      totalLinhas: result.totalLinhas || reportData.length,
-      totalDias: result.totalDias || 0,
-      totalAtendentes: result.totalAtendentes || 0
-    };
-  } catch (err) {
-    Logger.log('onsubmitReport error: ' + err.toString());
-    return { error: err.toString() };
-  }
-}
 
 /**
  * Função de teste para executar o relatório manualmente.
@@ -220,60 +166,6 @@ function gerarRelatorioLiftingInteresses() {
     };
   } catch (e) {
     Logger.log('gerarRelatorioLiftingInteresses error: ' + e.toString());
-    return { error: e.toString() };
-  }
-}
-
-/**
- * Teste para executar geração de relatório de interesses.
- */
-function runGerarRelatorioLiftingInteresses() {
-  var resultado = gerarRelatorioLiftingInteresses();
-  Logger.log('Resultado Lifting: ' + JSON.stringify(resultado, null, 2));
-}
-
-/**
- * Gatilho onSubmit para geração de relatório.
- * Deve ser configurado como trigger do formulário.
- * Atualiza as abas REPORT e REPORT_LIFTING sempre que um formulário é enviado.
- * @param {Object} e - Evento do Google Forms.
- * @returns {Object} Resultado com sucesso ou erro.
- */
-function onSubmitReport(e) {
-  try {
-    Logger.log('onSubmitGenerateReport: evento recebido');
-    
-    // Verificar se o evento existe (para evitar execução acidental)
-    if (!e || !e.values) {
-      Logger.log('onSubmitGenerateReport: evento inválido, gerando relatório mesmo assim');
-    }
-    
-    // 1. Gerar relatório de atendimentos
-    var resultado1 = gerarRelatorioSeeu();
-    
-    if (resultado1.error) {
-      Logger.log('onSubmitGenerateReport error (REPORT): %s', resultado1.error);
-    } else {
-      Logger.log('onSubmitGenerateReport success (REPORT): %s linhas, %s dias, %s atendentes', 
-        resultado1.totalLinhas, resultado1.totalDias, resultado1.totalAtendentes);
-    }
-    
-    // 2. Gerar relatório de interesses (REPORT_LIFTING)
-    var resultado2 = gerarRelatorioLiftingInteresses();
-    
-    if (resultado2.error) {
-      Logger.log('onSubmitGenerateReport error (REPORT_LIFTING): %s', resultado2.error);
-    } else {
-      Logger.log('onSubmitGenerateReport success (REPORT_LIFTING): %s interesses processados', 
-        resultado2.totalInteresses);
-    }
-    
-    return {
-      report: resultado1,
-      reportLifting: resultado2
-    };
-  } catch (e) {
-    Logger.log('onSubmitGenerateReport error: %s', e.toString());
     return { error: e.toString() };
   }
 }

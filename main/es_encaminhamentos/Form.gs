@@ -202,13 +202,16 @@ function buildEsEncaminhamentosPrefillUrl(person) {
   setEntry(ES_FORM_ENTRIES.CITY, endereco.city);
   setEntry(ES_FORM_ENTRIES.STATE, endereco.state);
 
-  // Novos campos para auto-preenchimento adicional
-  setEntry(ES_FORM_ENTRIES.TIPO_IMOVEL, 'PRÓPRIO');
-  setEntry(ES_FORM_ENTRIES.POSSUI_VEICULO, 'SIM');
-  
-
-  // Buscar últimas respostas do formulário Google para o CPF
+  // Buscar últimas respostas do formulário Google e dados socioeconômicos para o CPF
   var lastFormAnswers = getLastFormAnswersByCpf(person.cpf);
+
+  // Novos campos para auto-preenchimento adicional (preferir dados salvos em SOCIOECONOMIC)
+  if (lastFormAnswers && lastFormAnswers.TIPO_IMOVEL) {
+    setEntry(ES_FORM_ENTRIES.TIPO_IMOVEL, lastFormAnswers.TIPO_IMOVEL);
+  }
+  if (lastFormAnswers && lastFormAnswers.POSSUI_VEICULO) {
+    setEntry(ES_FORM_ENTRIES.POSSUI_VEICULO, lastFormAnswers.POSSUI_VEICULO);
+  }
 
   // POSSUI_FILHOS
   var possuiFilhosValue = lastFormAnswers && lastFormAnswers.POSSUI_FILHOS ? lastFormAnswers.POSSUI_FILHOS : '';
@@ -261,8 +264,15 @@ function buildEsEncaminhamentosPrefillUrl(person) {
         }
       }
 
-      // Buscar na aba SOCIOECONOMIC (database) e preferir estes valores quando presentes
-      var socio = getSocioByCpf(cpf);
+              // Buscar na aba SOCIOECONOMIC (database) e preferir estes valores quando presentes
+      var socio = null;
+      if (typeof utils !== 'undefined' && typeof utils.getSocioByCpf === 'function') {
+        socio = utils.getSocioByCpf(cpf);
+        Logger.log('getLastFormAnswersByCpf: socio fetched = %s', JSON.stringify(socio));
+      } else {
+        Logger.log('getLastFormAnswersByCpf: utils.getSocioByCpf indisponível');
+      }
+
       var result = formResult || {};
       if (socio) {
         if (socio.tipoImovel) result.TIPO_IMOVEL = socio.tipoImovel;
@@ -270,6 +280,7 @@ function buildEsEncaminhamentosPrefillUrl(person) {
         if (socio.possuiFilhos) result.POSSUI_FILHOS = socio.possuiFilhos;
         if (socio.comQuemFilhos) result.COM_QUEM_FILHOS = socio.comQuemFilhos;
       }
+      Logger.log('getLastFormAnswersByCpf: result merged = %s', JSON.stringify(result));
       return result;
     } catch (e) {
       Logger.log('getLastFormAnswersByCpf error: ' + e);
@@ -285,32 +296,7 @@ function buildEsEncaminhamentosPrefillUrl(person) {
     return -1;
   }
 
-  // Busca registro socioeconômico na aba SOCIOECONOMIC pelo CPF
-  function getSocioByCpf(cpf) {
-    try {
-      var ss = SpreadsheetApp.openById(types.DATABASE_ID);
-      var sheet = ss.getSheetByName(types.SHEET_NAMES.SOCIOECONOMIC);
-      if (!sheet) return null;
-      var data = sheet.getDataRange().getValues();
-      var cpfNorm = cpf ? cpf.toString().replace(/\D+/g, '') : '';
-      var lastRow = null;
-      for (var i = 1; i < data.length; i++) {
-        var row = data[i];
-        var rowCpf = (row[types.SOCIOECONOMIC_COL.CPF] || '').toString().replace(/\D+/g, '');
-        if (rowCpf === cpfNorm) lastRow = row;
-      }
-      if (!lastRow) return null;
-      return {
-        tipoImovel: lastRow[types.SOCIOECONOMIC_COL.TIPO_IMOVEL] || '',
-        possuiVeiculo: lastRow[types.SOCIOECONOMIC_COL.POSSUI_VEICULO] || '',
-        possuiFilhos: lastRow[types.SOCIOECONOMIC_COL.POSSUI_FILHOS] || '',
-        comQuemFilhos: lastRow[types.SOCIOECONOMIC_COL.COM_QUEM_FILHOS] || ''
-      };
-    } catch (e) {
-      Logger.log('getSocioByCpf error: ' + e);
-      return null;
-    }
-  }
+
 
   Logger.log('buildEsEncaminhamentosPrefillUrl: entries = %s', JSON.stringify(entries));
 
